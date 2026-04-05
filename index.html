@@ -241,10 +241,46 @@
   }
 
   function startMusic() {
-    bgMusic        = new Audio(BACKGROUND_MUSIC);
-    bgMusic.loop   = true;
-    bgMusic.volume = MUSIC_VOLUME;
-    bgMusic.play().catch(() => {/* file missing or blocked — silent */});
+    const CROSSFADE_DURATION = 4; // seconds before end to begin crossfade
+
+    function createTrack() {
+      const a = new Audio(BACKGROUND_MUSIC);
+      a.volume = MUSIC_VOLUME;
+      return a;
+    }
+
+    function playWithCrossfade(track) {
+      track.play().catch(() => {});
+
+      track.addEventListener('timeupdate', function scheduleXfade() {
+        const remaining = track.duration - track.currentTime;
+        if (!isNaN(remaining) && remaining <= CROSSFADE_DURATION) {
+          track.removeEventListener('timeupdate', scheduleXfade);
+
+          // Fade out the current track
+          const step = MUSIC_VOLUME / (CROSSFADE_DURATION * 30);
+          const fadeOut = setInterval(() => {
+            track.volume = Math.max(0, track.volume - step);
+            if (track.volume <= 0) clearInterval(fadeOut);
+          }, 1000 / 30);
+
+          // Fade in the next track
+          const next = createTrack();
+          next.volume = 0;
+          next.play().catch(() => {});
+          const fadeIn = setInterval(() => {
+            next.volume = Math.min(MUSIC_VOLUME, next.volume + step);
+            if (next.volume >= MUSIC_VOLUME) clearInterval(fadeIn);
+          }, 1000 / 30);
+
+          bgMusic = next;
+          playWithCrossfade(next);
+        }
+      });
+    }
+
+    bgMusic = createTrack();
+    playWithCrossfade(bgMusic);
   }
 
   // Splash tap — starts everything
