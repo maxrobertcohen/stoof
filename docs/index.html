@@ -50,9 +50,12 @@
     #splash-label {
       margin-top: 2rem;
       color: #d4c9b0;
-      font-size: 1rem;
-      letter-spacing: 0.25em;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
       font-style: italic;
+      text-align: center;
+      line-height: 1.7;
+      padding: 0 2rem;
       animation: pulse 3s ease-in-out infinite;
     }
 
@@ -146,7 +149,7 @@
 
 <div id="splash">
   <img id="splash-image" src="images/cover.jpeg" alt="">
-  <p id="splash-label">crawl inside</p>
+  <p id="splash-label">Tap on the right side to crawl in,<br>tap on the left to crawl back.</p>
   <p id="splash-audio-hint">(turn on audio)</p>
 </div>
 
@@ -178,14 +181,22 @@
   ];
 
   const BACKGROUND_MUSIC = 'music/Wormmusic.m4a';
+  const COVER_NARRATION  = 'sounds/cover.m4a';
   const MUSIC_VOLUME     = 0.35;   // 0.0 – 1.0
   const SFX_VOLUME       = 0.8;    // 0.0 – 1.0
   // ─────────────────────────────────────────────────────────────────────────────
 
   let current          = 0;
+  let onCover          = true;
   let bgMusic          = null;
   let currentNarration = null;
   const sfxCache = {};
+
+  // Preload cover narration
+  const coverNarration = new Audio();
+  coverNarration.preload = 'auto';
+  coverNarration.volume  = SFX_VOLUME;
+  coverNarration.src     = COVER_NARRATION;
 
   // Build page elements
   const bookEl = document.getElementById('book');
@@ -220,20 +231,47 @@
 
   // Navigate to a page
   function goTo(index) {
-    if (index < 0 || index >= PAGES.length) return;
+    if (index >= PAGES.length) return;
+
+    // Tapping left on page 1 goes back to cover
+    if (index < 0) {
+      goToCover();
+      return;
+    }
 
     const pages = bookEl.querySelectorAll('.page');
     const dots  = dotsEl.querySelectorAll('.dot');
 
-    pages[current].classList.remove('active');
-    dots[current].classList.remove('active');
+    if (!onCover) {
+      pages[current].classList.remove('active');
+      dots[current].classList.remove('active');
+    }
 
-    current = index;
+    if (onCover) document.getElementById('splash').classList.add('fade-out');
+    onCover  = false;
+    current  = index;
 
     pages[current].classList.add('active');
     dots[current].classList.add('active');
 
     playNarration(current);
+  }
+
+  function goToCover() {
+    const pages = bookEl.querySelectorAll('.page');
+    const dots  = dotsEl.querySelectorAll('.dot');
+    pages[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    onCover = true;
+    splash.classList.remove('fade-out');
+    // Play cover narration
+    if (currentNarration) {
+      currentNarration.pause();
+      currentNarration.currentTime = 0;
+    }
+    coverNarration.currentTime = 0;
+    currentNarration = coverNarration;
+    coverNarration.play().catch(() => {});
   }
 
   function playNarration(index) {
@@ -295,12 +333,11 @@
     playWithCrossfade(bgMusic);
   }
 
-  // Splash tap — starts music and narration for page 1
+  // Splash tap — starts music and goes to page 1
   const splash = document.getElementById('splash');
   splash.addEventListener('click', () => {
-    splash.classList.add('fade-out');
     startMusic();
-    playNarration(0);
+    goTo(0);
   });
 
   // Tap left / tap right
