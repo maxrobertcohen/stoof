@@ -172,8 +172,9 @@
   const SFX_VOLUME       = 0.8;    // 0.0 – 1.0
   // ─────────────────────────────────────────────────────────────────────────────
 
-  let current  = 0;
-  let bgMusic  = null;
+  let current          = 0;
+  let bgMusic          = null;
+  let currentNarration = null;
   const sfxCache = {};
 
   // Build page elements
@@ -222,13 +223,19 @@
     pages[current].classList.add('active');
     dots[current].classList.add('active');
 
-    playSfx(current);
+    playNarration(current);
   }
 
-  function playSfx(index) {
+  function playNarration(index) {
+    // Stop whatever is currently narrating
+    if (currentNarration) {
+      currentNarration.pause();
+      currentNarration.currentTime = 0;
+    }
     const sfx = sfxCache[index];
     if (!sfx) return;
     sfx.currentTime = 0;
+    currentNarration = sfx;
     sfx.play().catch(() => {/* file missing or blocked — silent */});
   }
 
