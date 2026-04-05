@@ -192,12 +192,6 @@
   let currentNarration = null;
   const sfxCache = {};
 
-  // Preload cover narration
-  const coverNarration = new Audio();
-  coverNarration.preload = 'auto';
-  coverNarration.volume  = SFX_VOLUME;
-  coverNarration.src     = COVER_NARRATION;
-
   // Build page elements
   const bookEl = document.getElementById('book');
   const dotsEl = document.getElementById('dots');
@@ -263,15 +257,17 @@
     pages[current].classList.remove('active');
     dots[current].classList.remove('active');
     onCover = true;
-    splash.classList.remove('fade-out');
-    // Play cover narration
+    document.getElementById('splash').classList.remove('fade-out');
+    // Stop current narration
     if (currentNarration) {
       currentNarration.pause();
       currentNarration.currentTime = 0;
     }
-    coverNarration.currentTime = 0;
-    currentNarration = coverNarration;
-    coverNarration.play().catch(() => {});
+    // Create fresh audio in direct response to tap (most reliable on iOS)
+    const cover = new Audio(COVER_NARRATION);
+    cover.volume = SFX_VOLUME;
+    currentNarration = cover;
+    cover.play().catch(() => {});
   }
 
   function playNarration(index) {
