@@ -165,16 +165,16 @@
   //  sound: is optional — leave it null if you don't have a sfx for that page.
   //
   const PAGES = [
-    { image: 'images/page-1.jpeg',  sound: 'sounds/Page 1.m4a'  },
-    { image: 'images/page-2.jpeg',  sound: 'sounds/Page 2.m4a'  },
-    { image: 'images/page-3.jpeg',  sound: 'sounds/Page 3.m4a'  },
-    { image: 'images/page-4.jpeg',  sound: 'sounds/Page 4.m4a'  },
-    { image: 'images/page-5.jpeg',  sound: 'sounds/Page 5.m4a'  },
-    { image: 'images/page-6.jpeg',  sound: 'sounds/Page 6.m4a'  },
-    { image: 'images/page-7.jpeg',  sound: 'sounds/Page 7.m4a'  },
-    { image: 'images/page-8.jpeg',  sound: 'sounds/Page 8.m4a'  },
-    { image: 'images/page-9.jpeg',  sound: 'sounds/Page 9.m4a'  },
-    { image: 'images/page-10.jpeg', sound: 'sounds/Page 10.m4a' },
+    { image: 'images/page-1.jpeg',  sound: 'sounds/Page%201.m4a'  },
+    { image: 'images/page-2.jpeg',  sound: 'sounds/Page%202.m4a'  },
+    { image: 'images/page-3.jpeg',  sound: 'sounds/Page%203.m4a'  },
+    { image: 'images/page-4.jpeg',  sound: 'sounds/Page%204.m4a'  },
+    { image: 'images/page-5.jpeg',  sound: 'sounds/Page%205.m4a'  },
+    { image: 'images/page-6.jpeg',  sound: 'sounds/Page%206.m4a'  },
+    { image: 'images/page-7.jpeg',  sound: 'sounds/Page%207.m4a'  },
+    { image: 'images/page-8.jpeg',  sound: 'sounds/Page%208.m4a'  },
+    { image: 'images/page-9.jpeg',  sound: 'sounds/Page%209.m4a'  },
+    { image: 'images/page-10.jpeg', sound: 'sounds/Page%2010.m4a' },
   ];
 
   const BACKGROUND_MUSIC = 'music/Wormmusic.m4a';
@@ -250,6 +250,7 @@
   }
 
   function startMusic() {
+    if (bgMusic) return; // already running
     const CROSSFADE_DURATION = 6; // seconds before end to begin crossfade
 
     function createTrack() {
@@ -292,12 +293,15 @@
     playWithCrossfade(bgMusic);
   }
 
-  // Splash tap — starts everything
+  // Try to start music immediately (works on desktop, silently blocked on mobile until tap)
+  startMusic();
+
+  // Splash tap — dismiss splash and start narration for page 1
   const splash = document.getElementById('splash');
   splash.addEventListener('click', () => {
     splash.classList.add('fade-out');
-    startMusic();
-    playSfx(0);
+    startMusic(); // no-op on desktop (already started), unblocks on mobile
+    playNarration(0);
   });
 
   // Tap left / tap right
