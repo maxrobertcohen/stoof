@@ -284,56 +284,49 @@
   }
 
   let musicStarted = false;
+  let audioCtx     = null;
+  let audioBuffer  = null;
+  const CROSSFADE  = 6;
 
-  function startMusic() {
+  async function startMusic() {
     if (musicStarted) return;
     musicStarted = true;
 
-    const CROSSFADE = 6; // seconds
-    const TICK      = 100; // ms polling interval
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-    function fadeVolume(track, from, to, done) {
-      const steps    = (CROSSFADE * 1000) / TICK;
-      const delta    = (to - from) / steps;
-      let   vol      = from;
-      const interval = setInterval(() => {
-        vol = to > from
-          ? Math.min(to, vol + delta)
-          : Math.max(to, vol + delta);
-        track.volume = vol;
-        if (vol === to) { clearInterval(interval); if (done) done(); }
-      }, TICK);
-    }
+    const response    = await fetch(BACKGROUND_MUSIC);
+    const arrayBuffer = await response.arrayBuffer();
+    audioBuffer       = await audioCtx.decodeAudioData(arrayBuffer);
 
-    function playTrack(targetVolume) {
-      const track = new Audio(BACKGROUND_MUSIC);
-      track.volume = 0;
-      bgMusic = track;
-      track.play().catch(() => {});
+    scheduleLoop(audioCtx.currentTime, 0);
+  }
 
-      // Wait until duration is known before scheduling the crossfade
-      function schedule() {
-        if (!isFinite(track.duration)) {
-          setTimeout(schedule, 200);
-          return;
-        }
-        // Fade in
-        fadeVolume(track, 0, targetVolume, null);
+  function scheduleLoop(startAt, fadeIn) {
+    if (!audioCtx || !audioBuffer) return;
 
-        // Poll for crossfade point
-        const check = setInterval(() => {
-          const remaining = track.duration - track.currentTime;
-          if (remaining <= CROSSFADE) {
-            clearInterval(check);
-            fadeVolume(track, track.volume, 0, () => track.pause());
-            playTrack(MUSIC_VOLUME);
-          }
-        }, TICK);
-      }
-      schedule();
-    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
 
-    playTrack(MUSIC_VOLUME);
+    const gain = audioCtx.createGain();
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    // Fade in
+    gain.gain.setValueAtTime(0, startAt);
+    gain.gain.linearRampToValueAtTime(MUSIC_VOLUME, startAt + Math.max(fadeIn, 0.01));
+
+    source.start(startAt);
+
+    // Fade out near the end, then stop
+    const xfadeAt = startAt + audioBuffer.duration - CROSSFADE;
+    gain.gain.setValueAtTime(MUSIC_VOLUME, xfadeAt);
+    gain.gain.linearRampToValueAtTime(0, xfadeAt + CROSSFADE);
+    source.stop(startAt + audioBuffer.duration);
+
+    // Schedule next loop to start at the crossfade point
+    const msUntilNext = Math.max(0, (xfadeAt - audioCtx.currentTime - 0.2) * 1000);
+    setTimeout(() => scheduleLoop(xfadeAt, CROSSFADE), msUntilNext);
   }
 
   // Splash tap — starts music and goes to page 1
