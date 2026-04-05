@@ -295,14 +295,19 @@
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') await audioCtx.resume();
 
+    // Master volume node — single place to control loudness
+    const master = audioCtx.createGain();
+    master.gain.value = MUSIC_VOLUME;
+    master.connect(audioCtx.destination);
+
     const response    = await fetch(BACKGROUND_MUSIC);
     const arrayBuffer = await response.arrayBuffer();
     audioBuffer       = await audioCtx.decodeAudioData(arrayBuffer);
 
-    scheduleLoop(audioCtx.currentTime, 0);
+    scheduleLoop(audioCtx.currentTime + 0.1, 0, master);
   }
 
-  function scheduleLoop(startAt, fadeIn) {
+  function scheduleLoop(startAt, fadeIn, master) {
     if (!audioCtx || !audioBuffer) return;
 
     const source = audioCtx.createBufferSource();
@@ -310,23 +315,23 @@
 
     const gain = audioCtx.createGain();
     source.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(master);
 
-    // Fade in
+    // Fade in from 0 to 1 (master handles overall volume)
     gain.gain.setValueAtTime(0, startAt);
-    gain.gain.linearRampToValueAtTime(MUSIC_VOLUME, startAt + Math.max(fadeIn, 0.01));
+    gain.gain.linearRampToValueAtTime(1, startAt + Math.max(fadeIn, 0.05));
 
     source.start(startAt);
 
-    // Fade out near the end, then stop
+    // Fade out near end
     const xfadeAt = startAt + audioBuffer.duration - CROSSFADE;
-    gain.gain.setValueAtTime(MUSIC_VOLUME, xfadeAt);
+    gain.gain.setValueAtTime(1, xfadeAt);
     gain.gain.linearRampToValueAtTime(0, xfadeAt + CROSSFADE);
     source.stop(startAt + audioBuffer.duration);
 
-    // Schedule next loop to start at the crossfade point
+    // Schedule next loop
     const msUntilNext = Math.max(0, (xfadeAt - audioCtx.currentTime - 0.2) * 1000);
-    setTimeout(() => scheduleLoop(xfadeAt, CROSSFADE), msUntilNext);
+    setTimeout(() => scheduleLoop(xfadeAt, CROSSFADE, master), msUntilNext);
   }
 
   // Splash tap — starts music and goes to page 1
