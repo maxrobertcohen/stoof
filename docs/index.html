@@ -178,7 +178,7 @@
   ];
 
   const BACKGROUND_MUSIC = 'music/Wormmusic.m4a';
-  const MUSIC_VOLUME     = 0.45;   // 0.0 – 1.0
+  const MUSIC_VOLUME     = 0.35;   // 0.0 – 1.0
   const SFX_VOLUME       = 0.8;    // 0.0 – 1.0
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -249,9 +249,13 @@
     sfx.play().catch(() => {/* file missing or blocked — silent */});
   }
 
+  let musicStarted = false;
+
   function startMusic() {
-    if (bgMusic) return; // already running
-    const CROSSFADE_DURATION = 6; // seconds before end to begin crossfade
+    if (musicStarted) return;
+    musicStarted = true;
+
+    const CROSSFADE_DURATION = 6;
 
     function createTrack() {
       const a = new Audio(BACKGROUND_MUSIC);
@@ -267,14 +271,12 @@
         if (!isNaN(remaining) && remaining <= CROSSFADE_DURATION) {
           track.removeEventListener('timeupdate', scheduleXfade);
 
-          // Fade out the current track
           const step = MUSIC_VOLUME / (CROSSFADE_DURATION * 30);
           const fadeOut = setInterval(() => {
             track.volume = Math.max(0, track.volume - step);
             if (track.volume <= 0) clearInterval(fadeOut);
           }, 1000 / 30);
 
-          // Fade in the next track
           const next = createTrack();
           next.volume = 0;
           next.play().catch(() => {});
@@ -293,14 +295,11 @@
     playWithCrossfade(bgMusic);
   }
 
-  // Try to start music immediately (works on desktop, silently blocked on mobile until tap)
-  startMusic();
-
-  // Splash tap — dismiss splash and start narration for page 1
+  // Splash tap — starts music and narration for page 1
   const splash = document.getElementById('splash');
   splash.addEventListener('click', () => {
     splash.classList.add('fade-out');
-    startMusic(); // no-op on desktop (already started), unblocks on mobile
+    startMusic();
     playNarration(0);
   });
 
