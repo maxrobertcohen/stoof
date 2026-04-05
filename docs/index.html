@@ -293,44 +293,51 @@
     if (musicStarted) return;
     musicStarted = true;
 
-    const CROSSFADE_DURATION = 6;
+    const CROSSFADE = 6; // seconds
+    const TICK      = 100; // ms polling interval
 
-    function createTrack() {
-      const a = new Audio(BACKGROUND_MUSIC);
-      a.volume = MUSIC_VOLUME;
-      return a;
+    function fadeVolume(track, from, to, done) {
+      const steps    = (CROSSFADE * 1000) / TICK;
+      const delta    = (to - from) / steps;
+      let   vol      = from;
+      const interval = setInterval(() => {
+        vol = to > from
+          ? Math.min(to, vol + delta)
+          : Math.max(to, vol + delta);
+        track.volume = vol;
+        if (vol === to) { clearInterval(interval); if (done) done(); }
+      }, TICK);
     }
 
-    function playWithCrossfade(track) {
+    function playTrack(targetVolume) {
+      const track = new Audio(BACKGROUND_MUSIC);
+      track.volume = 0;
+      bgMusic = track;
       track.play().catch(() => {});
 
-      track.addEventListener('timeupdate', function scheduleXfade() {
-        const remaining = track.duration - track.currentTime;
-        if (!isNaN(remaining) && remaining <= CROSSFADE_DURATION) {
-          track.removeEventListener('timeupdate', scheduleXfade);
-
-          const step = MUSIC_VOLUME / (CROSSFADE_DURATION * 30);
-          const fadeOut = setInterval(() => {
-            track.volume = Math.max(0, track.volume - step);
-            if (track.volume <= 0) clearInterval(fadeOut);
-          }, 1000 / 30);
-
-          const next = createTrack();
-          next.volume = 0;
-          next.play().catch(() => {});
-          const fadeIn = setInterval(() => {
-            next.volume = Math.min(MUSIC_VOLUME, next.volume + step);
-            if (next.volume >= MUSIC_VOLUME) clearInterval(fadeIn);
-          }, 1000 / 30);
-
-          bgMusic = next;
-          playWithCrossfade(next);
+      // Wait until duration is known before scheduling the crossfade
+      function schedule() {
+        if (!isFinite(track.duration)) {
+          setTimeout(schedule, 200);
+          return;
         }
-      });
+        // Fade in
+        fadeVolume(track, 0, targetVolume, null);
+
+        // Poll for crossfade point
+        const check = setInterval(() => {
+          const remaining = track.duration - track.currentTime;
+          if (remaining <= CROSSFADE) {
+            clearInterval(check);
+            fadeVolume(track, track.volume, 0, () => track.pause());
+            playTrack(MUSIC_VOLUME);
+          }
+        }, TICK);
+      }
+      schedule();
     }
 
-    bgMusic = createTrack();
-    playWithCrossfade(bgMusic);
+    playTrack(MUSIC_VOLUME);
   }
 
   // Splash tap — starts music and goes to page 1
